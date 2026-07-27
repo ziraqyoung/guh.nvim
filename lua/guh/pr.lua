@@ -752,12 +752,27 @@ end
 
 --- Formats an ISO-8601 timestamp as a relative "… ago" string (largest unit only, like gh's `timeago`).
 local function reltime(iso)
-  local t = iso and vim.fn.strptime('%Y-%m-%dT%H:%M:%S', iso) or 0
-  if t == 0 then
-    return '' -- empty / unparseable
+  local y, mo, d, h, mi, s = (iso or ''):match('(%d+)-(%d+)-(%d+)T(%d+):(%d+):(%d+)')
+  if not y then
+    return ''
   end
-  local full = require('vim._core.time').fmt_rtime(math.max(0, os.time() - t))
-  return full:match('^[^,]+') .. ' ago' -- Keep only the first (largest) unit.
+  local secs = os.difftime(os.time(), os.time({ year = y, month = mo, day = d, hour = h, min = mi, sec = s }))
+  local function ago(n, unit)
+    n = math.floor(n)
+    return ('%d %s%s ago'):format(n, unit, n == 1 and '' or 's')
+  end
+  if secs < 60 then
+    return 'just now'
+  elseif secs < 3600 then
+    return ago(secs / 60, 'minute')
+  elseif secs < 86400 then
+    return ago(secs / 3600, 'hour')
+  elseif secs < 2592000 then
+    return ago(secs / 86400, 'day')
+  elseif secs < 31536000 then
+    return ago(secs / 2592000, 'month')
+  end
+  return ago(secs / 31536000, 'year')
 end
 
 --- "✓ Checks passing" / "✗ N/M checks failing" / "● N/M checks pending", or nil if there are no jobs.
